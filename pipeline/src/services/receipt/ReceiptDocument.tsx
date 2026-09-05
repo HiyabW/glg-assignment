@@ -59,6 +59,7 @@ const styles = StyleSheet.create({
 });
 
 export const ReceiptDocument: React.FC<{ order: Order }> = ({ order }) => {
+  const orderTotal = order.details?.items.reduce((acc, item) => acc + item.price * item.quantity, 0) ?? 0;
   return (
     <Document>
       <Page style={styles.page}>
@@ -103,7 +104,7 @@ export const ReceiptDocument: React.FC<{ order: Order }> = ({ order }) => {
         {/* Total Amount */}
         <View style={styles.total}>
           <Text style={styles.totalLabel}>Total Amount:</Text>
-          <Text>${order.amount.toFixed(2)}</Text>
+          <Text>${orderTotal.toFixed(2)}</Text>
         </View>
       </Page>
     </Document>
