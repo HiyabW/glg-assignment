@@ -30,7 +30,7 @@ export class OrdersController extends Controller {
    *          name: userId
    *          required: false
    *          schema:
-   *            type: number
+   *            type: string
    *            description: The user ID to filter orders by.
    *        - in: query
    *          name: status
