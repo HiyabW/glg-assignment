@@ -3,6 +3,7 @@ import {
   GetItemCommand,
   PutItemCommand,
   ScanCommand,
+  UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { unmarshall, marshall } from "@aws-sdk/util-dynamodb";
 
@@ -106,6 +107,27 @@ export class OrdersDatabase {
     const command = new DeleteItemCommand({
       TableName: DYNAMO_TABLE_ORDERS,
       Key: { orderId: { S: orderId } },
+    });
+
+    await client.send(command);
+  }
+
+  public static async cancelOrder(orderId: string): Promise<void> {
+    const client = DynamoService.getClient();
+    if (!DYNAMO_TABLE_ORDERS) throw new Error("DYNAMO_TABLE_ORDERS is not defined");
+
+    const command = new UpdateItemCommand({
+      TableName: DYNAMO_TABLE_ORDERS,
+      Key: { orderId: { S: orderId } },
+      UpdateExpression: "set #status = :status, cancelledAt = :cancelledAt, updatedAt = :updatedAt",
+      ExpressionAttributeNames: {
+        "#status": "status",
+      },
+      ExpressionAttributeValues: {
+        ":status": { S: "cancelled" },
+        ":cancelledAt": { N: `${Date.now()}` },
+        ":updatedAt": { N: `${Date.now()}` },
+      },
     });
 
     await client.send(command);

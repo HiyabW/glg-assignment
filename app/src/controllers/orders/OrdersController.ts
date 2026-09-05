@@ -2,11 +2,11 @@ import { Request, Response } from "express";
 
 import { Controller } from "../Controller";
 import { OrdersDatabase } from "../../databases/OrdersDatabase";
-import { getOrderStatus } from "../../definitions/enums/OrderStatus";
+import { OrderStatus, getOrderStatus } from "../../definitions/enums/OrderStatus";
 import { OrderFactory } from "../../definitions/entities/Order";
 import { SimpleQueueService } from "../../services/sqs/SimpleQueueService";
 
-const { SQS_ORDER_INTAKE_QUEUE_NAME } = process.env;
+const { SQS_ORDER_INTAKE_QUEUE_NAME, SQS_ORDER_CANCELLATION_QUEUE_NAME } = process.env;
 
 /**
  * @swagger
@@ -246,6 +246,58 @@ export class OrdersController extends Controller {
 
       await OrdersDatabase.deleteOrder(orderId);
       res.status(200).json({ success: true, order });
+    }
+    catch (error) {
+      this.handleError(req, res, error);
+    }
+  }
+
+  /**
+    * @swagger
+    * /api/orders/{orderId}/cancel:
+    *    delete:
+    *      tags: [Orders]
+    *      summary: Cancel an order and send a cancellation email.
+    *      parameters:
+    *        - in: path
+    *          name: orderId
+    *          required: true
+    *          schema:
+    *            type: string
+    *            description: The ID of the order to cancel.
+    *      produces:
+    *        - application/json
+    *      responses:
+    *        "200":
+    *          description: OK
+    *        "400":
+    *          description: BAD REQUEST
+    *        "404":
+    *          description: ORDER NOT FOUND
+    *        "409":
+    *          description: ORDER ALREADY CANCELLED
+    *        "500":
+    *          description: ERROR
+    */
+  public async cancelOrder(req: Request, res: Response): Promise<void> {
+    try {
+      const { orderId } = req.params;
+
+      const order = await OrdersDatabase.getOrderById(orderId);
+      if (!order) {
+        res.status(404).json({ success: false, message: "ORDER_NOT_FOUND" });
+        return;
+      }
+
+      if (order.status === OrderStatus.CANCELLED) {
+        res.status(409).json({ success: false, message: "ORDER_ALREADY_CANCELLED" });
+        return;
+      }
+
+      await OrdersDatabase.cancelOrder(orderId);
+      await SimpleQueueService.sendMessage(SQS_ORDER_CANCELLATION_QUEUE_NAME, "Cancel order", { orderId });
+
+      res.status(200).json({ success: true, order: { ...order, status: "cancelled" } });
     }
     catch (error) {
       this.handleError(req, res, error);
