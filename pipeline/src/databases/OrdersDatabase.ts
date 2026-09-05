@@ -1,5 +1,6 @@
 import {
   AttributeValue,
+  DeleteItemCommand,
   GetItemCommand,
   UpdateItemCommand
 } from "@aws-sdk/client-dynamodb";
@@ -95,5 +96,17 @@ export class OrdersDatabase {
 
     const dynamo = DynamoService.getClient();
     await dynamo.send(command);
+  }
+
+  public static async deleteOrder(orderId: string): Promise<void> {
+    const client = DynamoService.getClient();
+    if (!DYNAMO_TABLE_ORDERS) throw new Error("DYNAMO_TABLE_ORDERS is not defined");
+
+    const command = new DeleteItemCommand({
+      TableName: DYNAMO_TABLE_ORDERS,
+      Key: { orderId: { S: orderId } },
+    });
+
+    await client.send(command);
   }
 }
